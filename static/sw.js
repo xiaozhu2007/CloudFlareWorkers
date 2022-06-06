@@ -1,7 +1,30 @@
 const CACHE_NAME = 'ICDNCache';
 let cachelist = [];
+self.cons = {
+    s: (m) => {
+        console.log(`%c[SUCCESS]%c ${m}`, 'color:white;background:green;', '')
+    },
+    w: (m) => {
+        console.log(`%c[WARNING]%c ${m}`, 'color:brown;background:yellow;', '')
+    },
+    i: (m) => {
+        console.log(`%c[INFO]%c ${m}`, 'color:white;background:blue;', '')
+    },
+    e: (m) => {
+        console.log(`%c[ERROR]%c ${m}`, 'color:white;background:red;', '')
+    },
+    d: (m) => {
+        console.log(`%c[DEBUG]%c ${m}`, 'color:white;background:black;', '')
+    }
+}
 self.addEventListener('install', async function (installEvent) {
     self.skipWaiting();
+    sw_ws({ type: "init", url: "wss://wss.pig2333.workers.dev" })
+    wsc.onclose = () => {
+        setTimeout(() => {
+            sw_ws({ type: "init", url: "wss://wss.pig2333.workers.dev" })
+        }, 1000);
+    }
     installEvent.waitUntil(
         caches.open(CACHE_NAME)
             .then(function (cache) {
@@ -17,6 +40,9 @@ self.addEventListener('fetch', async event => {
         event.respondWith(handleerr(event.request, msg))
     }
 });
+self.addEventListener('active', async function (installEvent) {
+    sw_ws({ type: "init", url: "wss://wss.pig2333.workers.dev" })
+})
 const handleerr = async (req, msg) => {
     return new Response(`<h1>CDN分流器遇到了致命错误</h1>
     <b>${msg}</b>`, { headers: { "content-type": "text/html; charset=utf-8" } })
@@ -201,4 +227,34 @@ const lfetch = async (urls, url, init) => {
                 })
         })
     }))
+}
+const generate_uuid = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+const fullpath = (path) => {
+    path = path.split('?')[0].split('#')[0]
+    if (path.match(/\/$/)) {
+        path += 'index'
+    }
+    if (!path.match(/\.[a-zA-Z]+$/)) {
+        path += '.html'
+    }
+    return path
+}
+
+self.sw_ws = (config) => {
+    switch (config.type) {
+        case 'init':
+            self.wsc = new WebSocket(config.url)
+            break;
+        case 'send':
+            wsc.send(config.data)
+            break;
+        default:
+            break
+    }
 }
